@@ -3,6 +3,7 @@ package banana.pekan;
 import banana.pekan.math.Ray;
 import banana.pekan.math.Sphere;
 import banana.pekan.shader.ComputeShader;
+import banana.pekan.shader.ShaderBuffer;
 import org.joml.Vector3d;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.*;
@@ -19,6 +20,7 @@ import java.net.URL;
 import java.nio.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Objects;
 
 import static org.lwjgl.glfw.Callbacks.*;
@@ -37,6 +39,8 @@ public class GraphicsMain {
     int height;
 
     FloatBuffer pixelBuffer;
+
+    ArrayList<Sphere> spheres;
 
     public void run(int width, int height) {
         this.width = width;
@@ -88,6 +92,8 @@ public class GraphicsMain {
 
     private void init() {
         pixelBuffer = BufferUtils.createFloatBuffer(width * height * 4);
+        spheres = new ArrayList<>();
+        spheres.add(new Sphere(6, 5, 15, 1));
     }
 
     private void loop() {
@@ -132,6 +138,15 @@ public class GraphicsMain {
         GL43.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, pixelBuffer, GL43.GL_DYNAMIC_COPY);
         GL43.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, 0, ssbo);
 
+        ShaderBuffer spheresBuffer = new ShaderBuffer(1, Sphere.BYTES * spheres.size());
+
+        for (Sphere sphere : spheres) {
+            spheresBuffer.putVector3d(sphere.getOrigin());
+            spheresBuffer.putDouble(sphere.getRadius());
+        }
+
+        spheresBuffer.bindAndPassData();
+
         int variablesSSBO = GL43.glGenBuffers();
         ByteBuffer variablesBuffer = BufferUtils.createByteBuffer(Float.BYTES * 2);
 
@@ -140,17 +155,20 @@ public class GraphicsMain {
 
         GL43.glBindBuffer(GL43.GL_UNIFORM_BUFFER, variablesSSBO);
         GL43.glBufferData(GL43.GL_UNIFORM_BUFFER, variablesBuffer, GL43.GL_DYNAMIC_COPY);
-        GL43.glBindBufferBase(GL43.GL_UNIFORM_BUFFER, 1, variablesSSBO);
+        GL43.glBindBufferBase(GL43.GL_UNIFORM_BUFFER, 2, variablesSSBO);
 
         GL43.glDispatchCompute(width / 8, height / 8, 1);
 
         GL43.glMemoryBarrier(GL43.GL_SHADER_STORAGE_BARRIER_BIT);
 
+        GL43.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, ssbo);
         GL43.glGetBufferSubData(GL43.GL_SHADER_STORAGE_BUFFER, 0, pixelBuffer);
 
         GL43.glUseProgram(0);
 
         GL43.glDeleteBuffers(ssbo);
+        GL43.glDeleteBuffers(variablesSSBO);
+        spheresBuffer.deleteBuffer();
     }
 
     public void setPixel(int index, int rgba) {
