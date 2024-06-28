@@ -6,11 +6,13 @@ import banana.pekan.shader.ShaderBuffer;
 import org.joml.Vector4d;
 import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
+import org.lwjgl.PointerBuffer;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.*;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.Struct;
 
+import java.lang.instrument.Instrumentation;
 import java.nio.*;
 import java.util.ArrayList;
 import java.util.Objects;
@@ -31,7 +33,7 @@ public class GraphicsMain {
 
     FloatBuffer pixelBuffer;
 
-    ArrayList<Sphere> spheres;
+    Scene scene;
 
     public void run(int width, int height) {
         this.width = width;
@@ -83,9 +85,9 @@ public class GraphicsMain {
 
     private void init() {
         pixelBuffer = BufferUtils.createFloatBuffer(width * height * 4);
-        spheres = new ArrayList<>();
-        spheres.add(new Sphere(6, 5, 15, 1, new Vector4d(0, 0, 1, 1)));
-        spheres.add(new Sphere(0, 0, 15, 1, new Vector4d(0, 1, 0, 1)));
+        scene = new Scene();
+        scene.addSphere(new Sphere(6, 5, 15, 1, new Vector4d(0, 0, 1, 1)));
+        scene.addSphere(new Sphere(0, 0, 15, 1, new Vector4d(0, 1, 0, 1)));
     }
 
     private void loop() {
@@ -111,14 +113,10 @@ public class GraphicsMain {
             applyShader(program);
 
             glDrawPixels(width, height, GL_RGBA, GL_FLOAT, pixelBuffer);
-            System.out.println(pixelBuffer.get(0));
 
             pixelBuffer.clear();
 
-
-            if (GLFW.glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-                spheres.get(0).translate(-0.05, 0, 0);
-            }
+            scene.move(window);
 
             glfwSwapBuffers(window);
 
@@ -135,9 +133,9 @@ public class GraphicsMain {
         GL43.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, pixelBuffer, GL43.GL_DYNAMIC_COPY);
         GL43.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, 0, ssbo);
 
-        ShaderBuffer spheresBuffer = new ShaderBuffer(1, Sphere.BYTES * spheres.size());
+        ShaderBuffer spheresBuffer = new ShaderBuffer(1, Sphere.BYTES * scene.getSpheres().size());
 
-        for (Sphere sphere : spheres) {
+        for (Sphere sphere : scene.getSpheres()) {
             spheresBuffer.putVector3d(sphere.getOrigin());
             spheresBuffer.putDouble(sphere.getRadius());
             spheresBuffer.putVector4d(sphere.getColor());
@@ -145,15 +143,14 @@ public class GraphicsMain {
 
         spheresBuffer.bindAndPassData();
 
-        int variablesSSBO = GL43.glGenBuffers();
-        ByteBuffer variablesBuffer = BufferUtils.createByteBuffer(Float.BYTES * 2);
+        ShaderBuffer variablesBuffer = new ShaderBuffer(2, Double.BYTES * 32, GL43.GL_UNIFORM_BUFFER);
 
-        variablesBuffer.putFloat(0, width);
-        variablesBuffer.putFloat(Float.BYTES, height);
+        variablesBuffer.putVector3d(scene.getCameraPos());
 
-        GL43.glBindBuffer(GL43.GL_UNIFORM_BUFFER, variablesSSBO);
-        GL43.glBufferData(GL43.GL_UNIFORM_BUFFER, variablesBuffer, GL43.GL_DYNAMIC_COPY);
-        GL43.glBindBufferBase(GL43.GL_UNIFORM_BUFFER, 2, variablesSSBO);
+        variablesBuffer.putFloat(width);
+        variablesBuffer.putFloat(height);
+
+        variablesBuffer.bindAndPassData();
 
         GL43.glDispatchCompute(width / 8, height / 8, 1);
 
@@ -165,7 +162,7 @@ public class GraphicsMain {
         GL43.glUseProgram(0);
 
         GL43.glDeleteBuffers(ssbo);
-        GL43.glDeleteBuffers(variablesSSBO);
+        variablesBuffer.deleteBuffer();
         spheresBuffer.deleteBuffer();
     }
 

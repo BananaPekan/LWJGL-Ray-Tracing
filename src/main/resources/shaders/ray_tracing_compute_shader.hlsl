@@ -9,6 +9,7 @@ struct Sphere {
 RWStructuredBuffer<Sphere> spheres : register( b1 );
 
 cbuffer VariablesBuffer : register( b2 ) {
+    double3 cameraPos;
     float width;
     float height;
 };
@@ -16,6 +17,8 @@ cbuffer VariablesBuffer : register( b2 ) {
 struct RayHit {
     Sphere sphere;
     double distance;
+    double3 hit;
+    double3 rayOrigin;
 };
 
 double getClosestHitDistance(double3 origin, double3 direction, double radius) {
@@ -35,7 +38,7 @@ double getClosestHitDistance(double3 origin, double3 direction, double radius) {
 }
 
 RayHit getClosestRayHit(double3 rayDirection) {
-    double closestHitDistance = 1.0 / .0;
+    double closestHitDistance = 1. / .0;
     RayHit rayHit;
     rayHit.distance = -1;
 
@@ -43,17 +46,19 @@ RayHit getClosestRayHit(double3 rayDirection) {
     spheres.GetDimensions(sphereCount);
 
     for (uint i = 0; i < sphereCount; i++) {
-        double3 sphereOrigin = spheres[i].origin;
+        double3 rayOrigin = cameraPos - spheres[i].origin;
         double sphereRadius = spheres[i].radius;
 
-        double hitDistance = getClosestHitDistance(-sphereOrigin, double3(rayDirection.x, rayDirection.y, rayDirection.z), sphereRadius);
+        double hitDistance = getClosestHitDistance(rayOrigin, double3(rayDirection.x, rayDirection.y, rayDirection.z), sphereRadius);
         if (hitDistance != -1 && hitDistance < closestHitDistance) {
             closestHitDistance = hitDistance;
             rayHit.distance = hitDistance;
             rayHit.sphere = spheres[i];
+            rayHit.rayOrigin = rayOrigin;
         }
-
     }
+
+    rayHit.hit = rayHit.rayOrigin + rayDirection * rayHit.distance;
 
     return rayHit;
 }
@@ -68,12 +73,15 @@ void MainEntry (uint3 id : SV_DispatchThreadID)
 
     RayHit rayHit = getClosestRayHit(rayDirection);
 
+    double3 lightOrigin = normalize(double3(1, 1, 1));
+
     double hitDistance = rayHit.distance;
 
     if (hitDistance < 0) {
         Output[id.y * width + id.x] = float4(0, 0, 0, 255);
     }
     else {
-        Output[id.y * width + id.x] = rayHit.sphere.color;
+        float4 sphereColor = rayHit.sphere.color * max(dot(normalize(rayHit.hit), -lightOrigin), 0.1f);
+        Output[id.y * width + id.x] = sphereColor;
     }
 }

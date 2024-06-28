@@ -13,13 +13,20 @@ public class ShaderBuffer {
     int binding;
     int ssbo;
     ByteBuffer buffer;
-    int position;
+    int target;
+
+    public ShaderBuffer(int binding, int capacity, int target) {
+        this.binding = binding;
+        this.ssbo = GL43.glGenBuffers();
+        this.buffer = BufferUtils.createByteBuffer(capacity);
+        this.target = target;
+    }
 
     public ShaderBuffer(int binding, int capacity) {
         this.binding = binding;
         this.ssbo = GL43.glGenBuffers();
         this.buffer = BufferUtils.createByteBuffer(capacity);
-        this.position = 0;
+        this.target = GL43.GL_SHADER_STORAGE_BUFFER;
     }
 
     public void putVector3d(Vector3d vector3d) {
@@ -36,14 +43,18 @@ public class ShaderBuffer {
     }
 
     public void putDouble(double value) {
-        buffer.putDouble(position, value);
-        position += Double.BYTES;
+        buffer.putDouble(value);
+    }
+
+    public void putFloat(float value) {
+        buffer.putFloat(value);
     }
 
     public void bindAndPassData() {
-        GL43.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, ssbo);
-        GL43.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, buffer, GL43.GL_DYNAMIC_COPY);
-        GL43.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, binding, ssbo);
+        buffer.flip();
+        GL43.glBindBuffer(target, ssbo);
+        GL43.glBufferData(target, buffer, GL43.GL_DYNAMIC_COPY);
+        GL43.glBindBufferBase(target, binding, ssbo);
     }
 
     public void deleteBuffer() {
