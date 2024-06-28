@@ -1,6 +1,8 @@
 package banana.pekan.shader;
 
 import org.joml.Vector3d;
+import org.joml.Vector4d;
+import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL43;
 
@@ -24,6 +26,13 @@ public class ShaderBuffer {
         putDouble(vector3d.x);
         putDouble(vector3d.y);
         putDouble(vector3d.z);
+    }
+
+    public void putVector4d(Vector4d vector4d) {
+        putDouble(vector4d.x);
+        putDouble(vector4d.y);
+        putDouble(vector4d.z);
+        putDouble(vector4d.w);
     }
 
     public void putDouble(double value) {

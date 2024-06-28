@@ -1,25 +1,17 @@
 package banana.pekan;
 
-import banana.pekan.math.Ray;
 import banana.pekan.math.Sphere;
 import banana.pekan.shader.ComputeShader;
 import banana.pekan.shader.ShaderBuffer;
-import org.joml.Vector3d;
+import org.joml.Vector4d;
+import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.*;
-import org.lwjgl.system.*;
 import org.lwjgl.system.MemoryStack;
-import org.lwjgl.util.shaderc.Shaderc;
+import org.lwjgl.system.Struct;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Objects;
 
@@ -27,7 +19,6 @@ import static org.lwjgl.glfw.Callbacks.*;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL20.*;
-import static org.lwjgl.opengl.GL46C.GL_SHADER_BINARY_FORMAT_SPIR_V;
 import static org.lwjgl.system.MemoryStack.*;
 import static org.lwjgl.system.MemoryUtil.*;
 
@@ -93,7 +84,8 @@ public class GraphicsMain {
     private void init() {
         pixelBuffer = BufferUtils.createFloatBuffer(width * height * 4);
         spheres = new ArrayList<>();
-        spheres.add(new Sphere(6, 5, 15, 1));
+        spheres.add(new Sphere(6, 5, 15, 1, new Vector4d(0, 0, 1, 1)));
+        spheres.add(new Sphere(0, 0, 15, 1, new Vector4d(0, 1, 0, 1)));
     }
 
     private void loop() {
@@ -109,7 +101,6 @@ public class GraphicsMain {
         glAttachShader(program, computeShader.getShader());
         glLinkProgram(program);
 
-
         if (glGetProgrami(program, GL_LINK_STATUS) == GL_FALSE) {
             throw new RuntimeException(glGetProgramInfoLog(program));
         }
@@ -120,8 +111,14 @@ public class GraphicsMain {
             applyShader(program);
 
             glDrawPixels(width, height, GL_RGBA, GL_FLOAT, pixelBuffer);
+            System.out.println(pixelBuffer.get(0));
 
             pixelBuffer.clear();
+
+
+            if (GLFW.glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+                spheres.get(0).translate(-0.05, 0, 0);
+            }
 
             glfwSwapBuffers(window);
 
@@ -143,6 +140,7 @@ public class GraphicsMain {
         for (Sphere sphere : spheres) {
             spheresBuffer.putVector3d(sphere.getOrigin());
             spheresBuffer.putDouble(sphere.getRadius());
+            spheresBuffer.putVector4d(sphere.getColor());
         }
 
         spheresBuffer.bindAndPassData();
