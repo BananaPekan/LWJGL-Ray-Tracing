@@ -12,6 +12,7 @@ cbuffer VariablesBuffer : register( b2 ) {
     double3 cameraPos;
     float width;
     float height;
+    double4 cameraRot;
 };
 
 struct RayHit {
@@ -71,6 +72,14 @@ void MainEntry (uint3 id : SV_DispatchThreadID)
 
     double3 rayDirection = double3(x, y, 1);
 
+    rayDirection = normalize(rayDirection);
+
+    // Rotating around the x-axis
+    rayDirection = double3(rayDirection.x, cameraRot.x * rayDirection.y - cameraRot.y * rayDirection.z, cameraRot.y * rayDirection.y + cameraRot.x * rayDirection.z);
+
+    // Rotating around the y-axis
+    rayDirection = double3(cameraRot.z * rayDirection.x + cameraRot.w * rayDirection.z, rayDirection.y, -cameraRot.w * rayDirection.x + cameraRot.z * rayDirection.z);
+
     RayHit rayHit = getClosestRayHit(rayDirection);
 
     double3 lightOrigin = normalize(double3(1, 1, 1));
@@ -84,4 +93,5 @@ void MainEntry (uint3 id : SV_DispatchThreadID)
         float4 sphereColor = rayHit.sphere.color * max(dot(normalize(rayHit.hit), -lightOrigin), 0.1f);
         Output[id.y * width + id.x] = sphereColor;
     }
+
 }

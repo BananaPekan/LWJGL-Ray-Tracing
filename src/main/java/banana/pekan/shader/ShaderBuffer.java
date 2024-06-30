@@ -1,8 +1,6 @@
 package banana.pekan.shader;
 
-import org.joml.Vector3d;
-import org.joml.Vector4d;
-import org.joml.Vector4f;
+import org.joml.*;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL43;
 
@@ -29,6 +27,11 @@ public class ShaderBuffer {
         this.target = GL43.GL_SHADER_STORAGE_BUFFER;
     }
 
+    public void putVector2d(Vector2d vector2d) {
+        putDouble(vector2d.x);
+        putDouble(vector2d.y);
+    }
+
     public void putVector3d(Vector3d vector3d) {
         putDouble(vector3d.x);
         putDouble(vector3d.y);
@@ -40,6 +43,14 @@ public class ShaderBuffer {
         putDouble(vector4d.y);
         putDouble(vector4d.z);
         putDouble(vector4d.w);
+    }
+
+    public void putMatrix3d(Matrix3f matrix3f) {
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                putFloat(matrix3f.getRowColumn(j, i));
+            }
+        }
     }
 
     public void putDouble(double value) {

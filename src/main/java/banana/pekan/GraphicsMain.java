@@ -3,8 +3,7 @@ package banana.pekan;
 import banana.pekan.math.Sphere;
 import banana.pekan.shader.ComputeShader;
 import banana.pekan.shader.ShaderBuffer;
-import org.joml.Vector4d;
-import org.joml.Vector4f;
+import org.joml.*;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.glfw.*;
@@ -107,12 +106,28 @@ public class GraphicsMain {
             throw new RuntimeException(glGetProgramInfoLog(program));
         }
 
+        glfwFocusWindow(window);
+
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
         while ( !glfwWindowShouldClose(window) ) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             applyShader(program);
 
             glDrawPixels(width, height, GL_RGBA, GL_FLOAT, pixelBuffer);
+
+            double[] mouseX = new double[1];
+            double[] mouseY = new double[1];
+
+            glfwGetCursorPos(window, mouseX, mouseY);
+
+            double mouseDX = mouseX[0] - width / 2f;
+            double mouseDY = mouseY[0] - height / 2f;
+
+            scene.camera.rotate(mouseDY / height, mouseDX / width);
+
+            glfwSetCursorPos(window, width / 2f, height / 2f);
 
             pixelBuffer.clear();
 
@@ -146,9 +161,9 @@ public class GraphicsMain {
         ShaderBuffer variablesBuffer = new ShaderBuffer(2, Double.BYTES * 32, GL43.GL_UNIFORM_BUFFER);
 
         variablesBuffer.putVector3d(scene.getCameraPos());
-
         variablesBuffer.putFloat(width);
         variablesBuffer.putFloat(height);
+        variablesBuffer.putVector4d(scene.getCameraRotations());
 
         variablesBuffer.bindAndPassData();
 
