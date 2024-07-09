@@ -85,9 +85,10 @@ public class GraphicsMain {
     private void init() {
         pixelBuffer = BufferUtils.createFloatBuffer(width * height * 4);
         scene = new Scene();
-        scene.addSphere(new Sphere(6, 5, 15, 1, new Vector4d(0, 0, 1, 1)));
-        scene.addSphere(new Sphere(0, 0, 15, 1, new Vector4d(0, 1, 0, 1)));
+        scene.addSphere(new Sphere(0, 9, 7, 5, new Vector4d(1, 0, 0, 1)));
+        scene.addSphere(new Sphere(-5, 3, 7, 1, new Vector4d(0, 0, 1, 1)));
     }
+
 
     private void loop() {
         GL.createCapabilities();
@@ -97,7 +98,7 @@ public class GraphicsMain {
         ComputeShader computeShader = new ComputeShader("shaders/ray_tracing_compute_shader.hlsl", "MainEntry");
         computeShader.loadShader();
 
-        int program = GL43.glCreateProgram();
+        int program = glCreateProgram();
 
         glAttachShader(program, computeShader.getShader());
         glLinkProgram(program);
@@ -109,7 +110,7 @@ public class GraphicsMain {
         glfwFocusWindow(window);
 
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
+        
         while ( !glfwWindowShouldClose(window) ) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -140,7 +141,7 @@ public class GraphicsMain {
     }
 
     public void applyShader(int program) {
-        GL43.glUseProgram(program);
+        glUseProgram(program);
 
         int ssbo = GL43.glGenBuffers();
 
@@ -174,7 +175,7 @@ public class GraphicsMain {
         GL43.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, ssbo);
         GL43.glGetBufferSubData(GL43.GL_SHADER_STORAGE_BUFFER, 0, pixelBuffer);
 
-        GL43.glUseProgram(0);
+        glUseProgram(0);
 
         GL43.glDeleteBuffers(ssbo);
         variablesBuffer.deleteBuffer();

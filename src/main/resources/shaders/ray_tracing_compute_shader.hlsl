@@ -20,7 +20,24 @@ struct RayHit {
     double distance;
     double3 hit;
     double3 rayOrigin;
+    double3 normal;
 };
+
+double getClosestHitDistanceCube(double3 rayOrigin, double3 invRayDir, double3 aabbMin, double3 aabbMax)
+{
+	double3 tbot = invRayDir * (aabbMin - rayOrigin);
+	double3 ttop = invRayDir * (aabbMax - rayOrigin);
+	double3 tmin = min(ttop, tbot);
+	double3 tmax = max(ttop, tbot);
+	double2 t = max(tmin.xx, tmin.yz);
+	double firstHit = max(0.0f, max(t.x, t.y));
+	t = min(tmax.xx, tmax.yz);
+	double lastHit = min(t.x, t.y);
+	if (firstHit <= lastHit) {
+	    return firstHit;
+	}
+	return -1;
+}
 
 double getClosestHitDistance(double3 origin, double3 direction, double radius) {
     double a = dot(direction, direction);
@@ -38,7 +55,7 @@ double getClosestHitDistance(double3 origin, double3 direction, double radius) {
     return nominator / (2 * a);
 }
 
-RayHit getClosestRayHit(double3 rayDirection) {
+RayHit getClosestRayHit(double3 origin, double3 rayDirection) {
     double closestHitDistance = 1. / .0;
     RayHit rayHit;
     rayHit.distance = -1;
@@ -47,11 +64,12 @@ RayHit getClosestRayHit(double3 rayDirection) {
     spheres.GetDimensions(sphereCount);
 
     for (uint i = 0; i < sphereCount; i++) {
-        double3 rayOrigin = cameraPos - spheres[i].origin;
+        double3 rayOrigin = origin - spheres[i].origin;
         double sphereRadius = spheres[i].radius;
 
         double hitDistance = getClosestHitDistance(rayOrigin, double3(rayDirection.x, rayDirection.y, rayDirection.z), sphereRadius);
-        if (hitDistance != -1 && hitDistance < closestHitDistance) {
+//         double hitDistance = getClosestHitDistanceCube(rayOrigin, double3(1, 1, 1) / rayDirection, double3(-sphereRadius, -sphereRadius, -sphereRadius), double3(sphereRadius, sphereRadius, sphereRadius));
+        if (hitDistance > 0 && hitDistance < closestHitDistance) {
             closestHitDistance = hitDistance;
             rayHit.distance = hitDistance;
             rayHit.sphere = spheres[i];
@@ -60,9 +78,22 @@ RayHit getClosestRayHit(double3 rayDirection) {
     }
 
     rayHit.hit = rayHit.rayOrigin + rayDirection * rayHit.distance;
+    rayHit.normal = normalize(rayHit.hit);
 
     return rayHit;
 }
+
+
+float4 FailedHit() {
+    return float4(0, 0, 0, 255);
+}
+
+float4 SuccessfulHit(RayHit rayHit) {
+    double3 lightOrigin = normalize(double3(1, -1, 1));
+    float4 sphereColor = rayHit.sphere.color * max(dot(normalize(rayHit.hit), -lightOrigin), 0.1f);
+    return sphereColor;
+}
+
 
 [numthreads(8,8,1)]
 void MainEntry (uint3 id : SV_DispatchThreadID)
@@ -80,18 +111,26 @@ void MainEntry (uint3 id : SV_DispatchThreadID)
     // Rotating around the y-axis
     rayDirection = double3(cameraRot.z * rayDirection.x + cameraRot.w * rayDirection.z, rayDirection.y, -cameraRot.w * rayDirection.x + cameraRot.z * rayDirection.z);
 
-    RayHit rayHit = getClosestRayHit(rayDirection);
+    float4 color = float4(0, 0, 0, 0);
+    double3 rayOrigin = cameraPos;
+    float colorMultiplier = 1.f;
 
-    double3 lightOrigin = normalize(double3(1, 1, 1));
+    for (int i = 0; i < 10; i++) {
+        RayHit rayHit = getClosestRayHit(rayOrigin, rayDirection);
 
-    double hitDistance = rayHit.distance;
+        double hitDistance = rayHit.distance;
+        if (hitDistance < 0) {
+            color += FailedHit();
+            break;
+        }
 
-    if (hitDistance < 0) {
-        Output[id.y * width + id.x] = float4(0, 0, 0, 255);
+        color += SuccessfulHit(rayHit) * colorMultiplier;
+        colorMultiplier *= 0.8f;
+
+        rayDirection = rayDirection - 2 * dot(rayDirection, rayHit.hit) * rayHit.normal;
+        rayOrigin = rayHit.sphere.origin + rayHit.normal * 0.001f;
     }
-    else {
-        float4 sphereColor = rayHit.sphere.color * max(dot(normalize(rayHit.hit), -lightOrigin), 0.1f);
-        Output[id.y * width + id.x] = sphereColor;
-    }
+
+    Output[id.y * width + id.x] = color;
 
 }
